@@ -156,6 +156,15 @@
             display: none;
         }
         
+        .success-card {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            margin-bottom: 20px;
+        }
+        
         .examples {
             margin-top: 20px;
             padding-top: 20px;
@@ -198,6 +207,24 @@
             text-align: center;
         }
         
+        .token-status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        
+        .token-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .token-missing {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
         @media (max-width: 600px) {
             .input-group {
                 flex-direction: column;
@@ -230,6 +257,10 @@
                     <span class="example-btn" onclick="setLesson('静夜思')">静夜思</span>
                     <span class="example-btn" onclick="setLesson('背影')">背影</span>
                 </div>
+            </div>
+            
+            <div id="tokenStatus" class="token-status token-missing">
+                ⚠️ 未检测到 GitHub Token，爬虫功能不可用，将使用本地笔记
             </div>
             
             <div class="status-badge" id="statusBadge">
@@ -344,8 +375,112 @@
 
 1. 背诵全文
 2. 用"真...啊"写排比句
-3. 画一画桂林山水`
+3. 画一画桂林山水`,
+            
+            "匆匆": `# ⏰ 匆匆 · 朱自清
+
+> 燕子去了，有再来的时候；杨柳枯了，有再青的时候；桃花谢了，有再开的时候。
+
+---
+
+## 📚 一、课文简介
+
+《匆匆》是现代著名作家朱自清的一篇散文。文章围绕"时间匆匆"展开，表达了作者对时光流逝的无奈和珍惜时间的感悟。
+
+---
+
+## ✨ 二、名句赏析
+
+### "燕子去了，有再来的时候……"
+用排比句开头，用自然现象反衬时间一去不复返。
+
+### "像针尖上一滴水滴在大海里"
+比喻时间消逝得无声无息，无影无踪。
+
+### "但不能平的，为什么偏要白白走这一遭啊？"
+反问句，表达对生命意义的思考。
+
+---
+
+## 🎯 三、课后思考
+
+1. 作者在文中提出了什么问题？
+2. 你觉得自己平时珍惜时间了吗？
+3. 写一段关于时间的话`,
+            
+            "静夜思": `# 🌙 静夜思 · 李白
+
+> 床前明月光，疑是地上霜。  
+> 举头望明月，低头思故乡。
+
+---
+
+## 📚 一、诗意理解
+
+### 字词解释
+- **疑**：好像
+- **举头**：抬头
+- **思**：思念
+
+### 诗句翻译
+明亮的月光洒在床前，好像地上铺了一层白霜。  
+抬起头仰望天上的明月，低下头思念起远方的故乡。
+
+---
+
+## ✨ 二、诗歌赏析
+
+这首诗用**比喻**的手法（月光像霜），通过"举头"和"低头"两个动作，生动地表现了诗人思念家乡的感情。
+
+---
+
+## 🎯 三、背诵小技巧
+
+1. 想象画面：月光、霜、抬头、低头
+2. 动作记忆：用手比划"举头"和"低头"
+3. 多读几遍，感受韵律`,
+            
+            "背影": `# 🎒 背影 · 朱自清
+
+> 我与父亲不相见已二年余了，我最不能忘记的是他的背影。
+
+---
+
+## 📚 一、课文简介
+
+《背影》是朱自清写的一篇回忆性散文。文章通过描写父亲送他到火车站、爬月台买橘子的背影，表达了父亲对儿子的关爱和儿子对父亲的思念。
+
+---
+
+## ✨ 二、感人片段
+
+> "我看见他戴着黑布小帽，穿着黑布大马褂，深青布棉袍，蹒跚地走到铁道边，慢慢探身下去……他用两手攀着上面，两脚再向上缩；他肥胖的身子向左微倾，显出努力的样子。"
+
+这一段通过**动作描写**，把父亲爬月台的艰难写得很具体，非常感人。
+
+---
+
+## 🎯 三、课后思考
+
+1. 为什么作者最不能忘记的是父亲的背影？
+2. 你身边有没有让你感动的瞬间？
+3. 写一段描写亲人的文字`
         };
+        
+        // 页面加载时检查 Token
+        function checkTokenStatus() {
+            const token = localStorage.getItem('github_token');
+            const statusDiv = document.getElementById('tokenStatus');
+            if (token && token.startsWith('ghp_')) {
+                statusDiv.innerHTML = '✅ GitHub Token 已配置！爬虫功能可用！';
+                statusDiv.className = 'token-status token-ok';
+                return true;
+            } else {
+                statusDiv.innerHTML = '⚠️ 未检测到 GitHub Token，爬虫功能不可用，将使用本地笔记<br>📌 配置方法：按 F12 打开 Console，输入：localStorage.setItem("github_token", "你的token")';
+                statusDiv.className = 'token-status token-missing';
+                return false;
+            }
+        }
         
         function setLesson(lessonName) {
             document.getElementById('lessonName').value = lessonName;
@@ -365,9 +500,8 @@
             document.getElementById('resultCard').style.display = 'none';
             document.getElementById('errorCard').style.display = 'none';
             
-            // 更新状态提示
             const badge = document.getElementById('statusBadge');
-            badge.innerHTML = '🔄 正在触发爬虫任务，请稍后...';
+            const token = localStorage.getItem('github_token');
             
             try {
                 // 先尝试获取已有的笔记（如果之前爬取过）
@@ -375,51 +509,110 @@
                 if (existingNote) {
                     displayNote(existingNote);
                     badge.innerHTML = '✅ 笔记已从缓存加载！如需最新资料，请再次点击生成。';
+                    document.getElementById('loading').style.display = 'none';
                     return;
                 }
                 
-                // 触发 GitHub Actions 爬虫
-                const triggered = await triggerWorkflow(lessonName);
-                
-                if (!triggered) {
-                    // 如果触发失败，使用本地备用笔记
-                    throw new Error('触发爬虫失败');
+                // 如果有 Token，尝试触发爬虫
+                if (token && token.startsWith('ghp_')) {
+                    badge.innerHTML = '🕷️ 正在触发爬虫任务...';
+                    const triggered = await triggerWorkflow(lessonName);
+                    
+                    if (triggered) {
+                        badge.innerHTML = '🕷️ 爬虫已启动，正在搜索网络资料...';
+                        const note = await pollForResult(lessonName);
+                        if (note) {
+                            displayNote(note);
+                            badge.innerHTML = '✅ 笔记生成成功！数据来自网络爬虫。';
+                            document.getElementById('loading').style.display = 'none';
+                            return;
+                        }
+                    }
                 }
                 
-                badge.innerHTML = '🕷️ 爬虫已启动，正在搜索网络资料...';
+                // 如果没有 Token 或爬虫失败，使用本地笔记
+                badge.innerHTML = '📚 使用本地笔记库...';
+                await new Promise(r => setTimeout(r, 500));
                 
-                // 轮询等待结果
-                const note = await pollForResult(lessonName);
-                
-                if (note) {
-                    displayNote(note);
-                    badge.innerHTML = '✅ 笔记生成成功！数据来自网络爬虫。';
+                const localNote = localNotes[lessonName];
+                if (localNote) {
+                    displayNote(localNote);
+                    document.getElementById('errorCard').innerHTML = `📚 当前使用本地笔记。<br><br>💡 想要使用网络爬虫？请先配置 GitHub Token（页面顶部有提示）`;
+                    document.getElementById('errorCard').style.display = 'block';
                 } else {
-                    throw new Error('未获取到结果');
+                    // 生成通用笔记
+                    const genericNote = generateGenericNote(lessonName);
+                    displayNote(genericNote);
+                    document.getElementById('errorCard').innerHTML = `📚 已生成通用模板。<br><br>💡 提示：你可以添加更多课文到本地笔记库`;
+                    document.getElementById('errorCard').style.display = 'block';
                 }
                 
             } catch (error) {
                 console.error('Error:', error);
-                
-                // 使用本地备用笔记
-                const localNote = localNotes[lessonName];
-                if (localNote) {
-                    displayNote(localNote);
-                    document.getElementById('errorCard').innerHTML = `⚠️ 爬虫暂时无法运行，已显示本地缓存笔记。<br><br>提示：需要配置 GitHub Token 才能使用爬虫功能。`;
-                    document.getElementById('errorCard').style.display = 'block';
-                    badge.innerHTML = '💡 当前使用本地笔记，配置 Token 后可启用网络爬虫。';
-                } else {
-                    document.getElementById('errorCard').innerHTML = `❌ 生成失败：${error.message}<br><br>请检查网络连接后重试。`;
-                    document.getElementById('errorCard').style.display = 'block';
-                    badge.innerHTML = '❌ 生成失败，请稍后重试。';
-                }
+                document.getElementById('errorCard').innerHTML = `❌ 生成失败：${error.message}<br><br>请稍后重试。`;
+                document.getElementById('errorCard').style.display = 'block';
+                badge.innerHTML = '❌ 生成失败，请稍后重试。';
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         }
         
+        function generateGenericNote(lessonName) {
+            return `# 📚 ${lessonName} · 学习笔记
+
+---
+
+## 一、课前预习
+
+1. 朗读课文3遍，标出自然段
+2. 圈出不会的生字词
+3. 思考：这篇课文主要讲了什么？
+
+---
+
+## 二、课堂笔记
+
+（在这里记录课堂内容）
+
+### 生字词
+| 生字 | 拼音 | 组词 |
+|------|------|------|
+| | | |
+| | | |
+
+### 重点句子
+> ________________________________
+
+---
+
+## 三、课文理解
+
+**主要内容**：________________________________
+
+**中心思想**：________________________________
+
+---
+
+## 四、课后复习
+
+1. 背诵指定段落
+2. 完成课后练习题
+3. 查找相关资料，了解更多
+
+---
+
+## 五、我的收获
+
+✨ 今天学到了：________________________________
+
+⭐ 我还想知道：________________________________
+
+---
+
+*📝 笔记生成时间：${new Date().toLocaleString()}*`;
+        }
+        
         async function tryGetExistingNote(lessonName) {
-            // 尝试从 data 文件夹获取已生成的笔记
             try {
                 const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md`;
                 const response = await fetch(url);
@@ -433,12 +626,8 @@
         }
         
         async function triggerWorkflow(lessonName) {
-            // 注意：这个功能需要 GitHub Token
-            // 如果没有配置 Token，会返回 false，自动使用本地笔记
-            
-            const token = getGitHubToken();
-            if (!token) {
-                console.log('未配置 GitHub Token，使用本地笔记');
+            const token = localStorage.getItem('github_token');
+            if (!token || !token.startsWith('ghp_')) {
                 return false;
             }
             
@@ -459,7 +648,14 @@
                     })
                 });
                 
-                return response.ok;
+                if (response.ok) {
+                    console.log('✅ 爬虫触发成功');
+                    return true;
+                } else {
+                    const text = await response.text();
+                    console.log('❌ 触发失败:', response.status, text);
+                    return false;
+                }
             } catch (e) {
                 console.error('触发失败:', e);
                 return false;
@@ -470,7 +666,6 @@
             for (let i = 0; i < maxAttempts; i++) {
                 await new Promise(r => setTimeout(r, interval));
                 
-                // 更新进度
                 const badge = document.getElementById('statusBadge');
                 badge.innerHTML = `🕷️ 爬虫运行中... (${i+1}/${maxAttempts}) 正在收集资料`;
                 
@@ -488,7 +683,6 @@
         }
         
         function displayNote(note) {
-            // 简单处理 Markdown 换行
             let html = note
                 .replace(/\n/g, '<br>')
                 .replace(/^# (.*$)/gm, '<h1 style="font-size: 1.8rem; margin: 20px 0 10px; color: #333;">$1</h1>')
@@ -498,13 +692,6 @@
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/^> (.*$)/gm, '<blockquote style="border-left: 4px solid #667eea; padding-left: 15px; margin: 10px 0; color: #666;">$1</blockquote>');
-            
-            // 简单处理表格
-            html = html.replace(/\|(.+)\|/g, function(match) {
-                return '<div style="display: flex; gap: 10px;">' + match.split('|').filter(x => x.trim()).map(cell => 
-                    '<span style="flex: 1; padding: 5px;">' + cell.trim() + '</span>'
-                ).join('') + '</div>';
-            });
             
             document.getElementById('noteContent').innerHTML = html;
             document.getElementById('resultCard').style.display = 'block';
@@ -519,20 +706,6 @@
             });
         }
         
-        function getGitHubToken() {
-            // 尝试从 localStorage 读取 token（用户可以自己配置）
-            return localStorage.getItem('github_token') || null;
-        }
-        
-        // 配置 Token 的辅助函数（可选）
-        function configureToken() {
-            const token = prompt('请输入你的 GitHub Personal Access Token：\n（需要 repo 和 workflow 权限）');
-            if (token) {
-                localStorage.setItem('github_token', token);
-                alert('Token 已保存！现在可以使用爬虫功能了。');
-            }
-        }
-        
         // 按回车键生成
         document.getElementById('lessonName').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -540,9 +713,11 @@
             }
         });
         
-        // 页面加载时显示提示
+        // 页面加载时检查 Token 状态
+        checkTokenStatus();
+        
         console.log('📚 语文笔记生成器已加载');
-        console.log('💡 配置 Token 后可使用网络爬虫功能');
+        console.log('💡 Token 状态:', localStorage.getItem('github_token') ? '已配置' : '未配置');
     </script>
 </body>
 </html>
