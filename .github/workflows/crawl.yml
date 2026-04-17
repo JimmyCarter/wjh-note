@@ -38,6 +38,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
           git add data/
           git diff --quiet && git diff --staged --quiet || git commit -m "爬取: ${{ github.event.inputs.lesson_name }}"
           git push

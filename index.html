@@ -187,6 +187,64 @@
             text-align: center;
         }
         
+        .token-input-section {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .token-input-section label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        .token-input-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .token-input-row input {
+            flex: 1;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            outline: none;
+            font-family: monospace;
+        }
+        
+        .token-input-row input:focus {
+            border-color: #667eea;
+        }
+        
+        .token-save-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        .token-save-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .token-hint {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: #888;
+        }
+        
         @media (max-width: 600px) {
             .input-group {
                 flex-direction: column;
@@ -217,6 +275,15 @@
             <div id="tokenStatus" class="token-status token-missing">
                 ⚠️ 正在检测 Token...
             </div>
+            
+            <div id="tokenInputSection" class="token-input-section">
+                <label>🔑 请输入 GitHub Token</label>
+                <div class="token-input-row">
+                    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+                    <button class="token-save-btn" onclick="saveToken()">💾 保存</button>
+                </div>
+                <div class="token-hint">Token 将仅保存在本地浏览器，不会上传。需要有 repo 和 workflow 权限。</div>
+            </div>
         </div>
         
         <div id="loading" class="loading">
@@ -237,22 +304,45 @@
     </div>
 
     <script>
-        const REPO_OWNER = "finnlove";
-        const REPO_NAME = "yuwen-note";
+        const REPO_OWNER = "wujiahai-ai";
+        const REPO_NAME = "wjh-note";
         
         // 检查 Token 状态
         function checkTokenStatus() {
             const token = localStorage.getItem('github_token');
             const statusDiv = document.getElementById('tokenStatus');
+            const inputSection = document.getElementById('tokenInputSection');
             if (token && token.startsWith('ghp_')) {
-                statusDiv.innerHTML = '✅ GitHub Token 已配置，爬虫功能可用！每次都会重新生成。';
+                statusDiv.innerHTML = '✅ GitHub Token 已配置，爬虫功能可用！每次都会重新生成。 <a href="#" onclick="clearToken(); return false;" style="color:#155724; font-size:0.85em;">重新设置</a>';
                 statusDiv.className = 'token-status token-ok';
+                inputSection.style.display = 'none';
                 return true;
             } else {
-                statusDiv.innerHTML = '⚠️ 未配置 GitHub Token<br>📌 按 F12 打开 Console，输入：localStorage.setItem("github_token", "你的token")';
+                statusDiv.innerHTML = '⚠️ 未检测到 GitHub Token，请在下方输入并保存';
                 statusDiv.className = 'token-status token-missing';
+                inputSection.style.display = 'block';
                 return false;
             }
+        }
+        
+        function saveToken() {
+            const input = document.getElementById('tokenInput');
+            const token = input.value.trim();
+            if (!token) {
+                alert('请输入 Token');
+                return;
+            }
+            if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+                if (!confirm('Token 格式看起来不对（通常以 ghp_ 开头），确定要保存吗？')) return;
+            }
+            localStorage.setItem('github_token', token);
+            input.value = '';
+            checkTokenStatus();
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('github_token');
+            checkTokenStatus();
         }
         
         // 生成唯一的时间戳，用于强制刷新
