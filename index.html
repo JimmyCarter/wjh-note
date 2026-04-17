@@ -245,6 +245,69 @@
             color: #888;
         }
         
+        .repo-config-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .repo-config-section label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        .repo-input-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .repo-input-row input {
+            flex: 1;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            outline: none;
+            font-family: monospace;
+        }
+        
+        .repo-input-row input:focus {
+            border-color: #667eea;
+        }
+        
+        .repo-save-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        .repo-save-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .repo-hint {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: #888;
+        }
+        
+        .repo-current {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #28a745;
+        }
+        
         @media (max-width: 600px) {
             .input-group {
                 flex-direction: column;
@@ -284,6 +347,17 @@
                 </div>
                 <div class="token-hint">Token 将仅保存在本地浏览器，不会上传。需要有 repo 和 workflow 权限。</div>
             </div>
+            
+            <div class="repo-config-section">
+                <label>📦 仓库地址配置</label>
+                <div class="repo-input-row">
+                    <input type="text" id="repoOwner" placeholder="用户名 (owner)" />
+                    <input type="text" id="repoName" placeholder="仓库名 (repo)" />
+                    <button class="repo-save-btn" onclick="saveRepoConfig()">💾 保存</button>
+                </div>
+                <div class="repo-current" id="repoCurrent"></div>
+                <div class="repo-hint">格式: https://github.com/用户名/仓库名</div>
+            </div>
         </div>
         
         <div id="loading" class="loading">
@@ -304,8 +378,45 @@
     </div>
 
     <script>
-        const REPO_OWNER = "JimmyCarter";
-        const REPO_NAME = "wjh-note";
+        // 默认仓库配置（如果 localStorage 中没有配置）
+        const DEFAULT_REPO_OWNER = "JimmyCarter";
+        const DEFAULT_REPO_NAME = "wjh-note";
+        
+        // 从 localStorage 读取配置，默认为空（使用默认值）
+        let REPO_OWNER = localStorage.getItem('repo_owner') || DEFAULT_REPO_OWNER;
+        let REPO_NAME = localStorage.getItem('repo_name') || DEFAULT_REPO_NAME;
+        
+        // 页面加载时更新配置显示
+        function initRepoConfig() {
+            document.getElementById('repoOwner').value = REPO_OWNER;
+            document.getElementById('repoName').value = REPO_NAME;
+            updateRepoDisplay();
+        }
+        
+        function updateRepoDisplay() {
+            const display = document.getElementById('repoCurrent');
+            display.innerHTML = `当前仓库: <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank" style="color:#667eea;">${REPO_OWNER}/${REPO_NAME}</a>`;
+        }
+        
+        function saveRepoConfig() {
+            const owner = document.getElementById('repoOwner').value.trim();
+            const name = document.getElementById('repoName').value.trim();
+            
+            if (!owner || !name) {
+                alert('请填写完整的仓库信息');
+                return;
+            }
+            
+            localStorage.setItem('repo_owner', owner);
+            localStorage.setItem('repo_name', name);
+            
+            // 更新全局变量
+            REPO_OWNER = owner;
+            REPO_NAME = name;
+            
+            updateRepoDisplay();
+            alert('✅ 仓库配置已保存！');
+        }
         
         // 检查 Token 状态
         function checkTokenStatus() {
@@ -522,6 +633,7 @@
         });
         
         // 页面加载检查
+        initRepoConfig();
         checkTokenStatus();
         console.log('📚 语文笔记生成器已加载（强制重新生成模式）');
         console.log('💡 每次点击都会重新爬取 + AI 重新生成，不使用任何缓存');
