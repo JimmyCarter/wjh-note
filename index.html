@@ -127,13 +127,27 @@
             color: #333;
         }
         
-        .copy-btn {
+        .result-header .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .copy-btn, .download-btn {
             padding: 8px 16px;
-            background: #28a745;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+        }
+        
+        .download-btn {
+            background: #667eea;
         }
         
         .note-content {
@@ -308,12 +322,119 @@
             color: #28a745;
         }
         
+        /* 移动端适配 */
         @media (max-width: 600px) {
+            body {
+                padding: 20px 15px;
+            }
+            
+            header {
+                margin-bottom: 25px;
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            header p {
+                font-size: 0.85rem;
+            }
+            
+            .search-card {
+                padding: 20px 15px;
+                border-radius: 15px;
+            }
+            
             .input-group {
                 flex-direction: column;
             }
+            
+            .input-group input {
+                padding: 14px 16px;
+                font-size: 16px; /* 防止 iOS 缩放 */
+            }
+            
+            .input-group button {
+                padding: 14px 20px;
+                width: 100%;
+            }
+            
+            .result-card {
+                border-radius: 15px;
+            }
+            
+            .result-header {
+                padding: 15px 20px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .result-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .btn-group {
+                width: 100%;
+                margin-top: 10px;
+            }
+            
+            .copy-btn, .download-btn {
+                flex: 1;
+                text-align: center;
+                padding: 10px 12px;
+                font-size: 0.85rem;
+            }
+            
+            .note-content {
+                padding: 20px 15px;
+                max-height: none;
+                font-size: 0.95rem;
+                line-height: 1.7;
+            }
+            
+            .token-input-row,
+            .repo-input-row {
+                flex-direction: column;
+            }
+            
+            .token-input-row input,
+            .repo-input-row input {
+                width: 100%;
+            }
+            
+            .token-save-btn,
+            .repo-save-btn {
+                width: 100%;
+                margin-top: 10px;
+            }
+            
+            .loading {
+                padding: 30px 20px;
+            }
+            
+            .error-card {
+                padding: 15px;
+                font-size: 0.9rem;
+            }
+            
+            .warning {
+                font-size: 0.8rem;
+                padding: 8px;
+            }
+            
+            .progress-info {
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* 超小屏幕适配 */
+        @media (max-width: 380px) {
             header h1 {
-                font-size: 1.8rem;
+                font-size: 1.3rem;
+            }
+            
+            .result-header .btn-group {
+                flex-direction: column;
             }
         }
     </style>
@@ -369,7 +490,10 @@
         <div id="resultCard" class="result-card">
             <div class="result-header">
                 <h2>📖 AI 生成结果</h2>
-                <button class="copy-btn" onclick="copyNote()">📋 复制笔记</button>
+                <div class="btn-group">
+                    <button class="copy-btn" onclick="copyNote()">📋 复制</button>
+                    <button class="download-btn" onclick="downloadNote()">⬇️ 下载MD</button>
+                </div>
             </div>
             <div id="noteContent" class="note-content"></div>
         </div>
@@ -460,6 +584,10 @@
         function getTimestamp() {
             return new Date().getTime();
         }
+        
+        // 保存当前笔记内容
+        let currentNote = '';
+        let currentLessonName = '';
         
         async function generateNote() {
             const lessonName = document.getElementById('lessonName').value.trim();
@@ -590,6 +718,10 @@
         }
         
         function displayNote(note) {
+            // 保存笔记内容
+            currentNote = note;
+            currentLessonName = document.getElementById('lessonName').value.trim();
+            
             // 简单 Markdown 转 HTML
             let html = note
                 .replace(/&/g, '&amp;')
@@ -625,6 +757,24 @@
             const text = document.getElementById('noteContent').innerText;
             navigator.clipboard.writeText(text);
             alert('✅ 笔记已复制到剪贴板');
+        }
+        
+        function downloadNote() {
+            if (!currentNote) {
+                alert('没有可下载的笔记');
+                return;
+            }
+            
+            // 创建下载链接
+            const blob = new Blob([currentNote], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${currentLessonName || '笔记'}.md`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
         
         // 回车生成
