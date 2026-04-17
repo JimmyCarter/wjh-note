@@ -31,6 +31,7 @@ jobs:
         env:
           LESSON_NAME: ${{ github.event.inputs.lesson_name }}
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        timeout-minutes: 10
         run: |
           python crawler.py "$LESSON_NAME"
       

@@ -263,7 +263,7 @@ def generate_with_ai(lesson_name, raw_materials):
                 "temperature": 0.9,
                 "max_tokens": 8000
             },
-            timeout=120
+            timeout=180
         )
         
         if response.status_code == 200:
