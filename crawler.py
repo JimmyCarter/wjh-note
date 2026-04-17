@@ -257,11 +257,16 @@ def generate_with_ai(lesson_name, raw_materials):
             json={
                 "model": "glm-4-flash",
                 "messages": [
-                    {"role": "system", "content": "你是小学语文特级教师，擅长写超详细、超专业的课文笔记。必须生成3000字以上的详细笔记，每个章节都要填满内容，禁止留空。"},
+                    {"role": "system", "content": """你是小学语文特级教师，擅长写精美有趣的课文笔记。要求：
+1. 使用HTML格式，加入颜色和边框样式美化
+2. 每个要点前加合适的emoji表情
+3. 内容精炼，每个板块150-300字即可
+4. 板块包括：课文原文、作者介绍、生字词、重点句子、中心思想、阅读感悟
+5. 风格活泼可爱，适合小学生阅读"""},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.9,
-                "max_tokens": 8000
+                "temperature": 0.8,
+                "max_tokens": 4000
             },
             timeout=180
         )
