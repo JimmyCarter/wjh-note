@@ -753,16 +753,19 @@
         }
         
         async function checkExistingNote(lessonName) {
-            // 直接检查文件是否存在（不等待，直接返回）
+            // 使用 Contents API 检查，绕开 raw.githubusercontent.com 的 CDN 缓存
+            const token = localStorage.getItem('github_token');
             try {
-                const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md`;
-                const response = await fetch(url, { cache: 'no-cache' });
-                if (response.ok) {
-                    const note = await response.text();
-                    if (note && note.length > 500) {
-                        console.log(`📁 找到已有笔记，长度: ${note.length} 字`);
-                        return note;
-                    }
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/${encodeURIComponent(lessonName)}.md`;
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                if (token) headers['Authorization'] = `token ${token}`;
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) return null; // 404 = 文件不存在
+                const data = await resp.json();
+                const content = atob(data.content.replace(/\n/g, ''));
+                if (content && content.length > 500) {
+                    console.log(`📁 找到已有笔记，长度: ${content.length} 字`);
+                    return content;
                 }
             } catch(e) {
                 console.log('文件不存在，需要生成');
