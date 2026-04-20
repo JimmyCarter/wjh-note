@@ -617,7 +617,18 @@
                     throw new Error('未配置 GitHub Token，无法触发爬虫');
                 }
                 
-                // 触发爬虫 - 每次都是新的请求
+                // 先检查文件是否已存在
+                document.getElementById('loadingText').innerHTML = '🔍 正在检查笔记是否已存在...';
+                const existingNote = await checkExistingNote(lessonName);
+                
+                if (existingNote) {
+                    document.getElementById('loadingText').innerHTML = '✅ 找到已有笔记！';
+                    displayNote(existingNote);
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+                
+                // 文件不存在，触发爬虫 - 每次都是新的请求
                 document.getElementById('loadingText').innerHTML = '📡 正在触发 GitHub Actions 爬虫...';
                 const triggered = await triggerWorkflow(lessonName, token);
                 
@@ -649,6 +660,24 @@
                 generateBtn.disabled = false;
                 generateBtn.textContent = '🚀 重新生成笔记';
             }
+        }
+        
+        async function checkExistingNote(lessonName) {
+            // 直接检查文件是否存在（不等待，直接返回）
+            try {
+                const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md`;
+                const response = await fetch(url, { cache: 'no-cache' });
+                if (response.ok) {
+                    const note = await response.text();
+                    if (note && note.length > 500) {
+                        console.log(`📁 找到已有笔记，长度: ${note.length} 字`);
+                        return note;
+                    }
+                }
+            } catch(e) {
+                console.log('文件不存在，需要生成');
+            }
+            return null;
         }
         
         async function triggerWorkflow(lessonName, token) {
