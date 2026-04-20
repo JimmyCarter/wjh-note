@@ -155,9 +155,21 @@
             line-height: 1.8;
             max-height: 600px;
             overflow-y: auto;
-            white-space: pre-wrap;
             font-family: inherit;
         }
+        .note-content h1 { font-size: 1.8rem; margin: 20px 0 10px; color: #333; }
+        .note-content h2 { font-size: 1.4rem; margin: 15px 0 10px; color: #555; border-bottom: 2px solid #eee; padding-bottom: 4px; }
+        .note-content h3 { font-size: 1.2rem; margin: 12px 0 8px; color: #667eea; }
+        .note-content h4 { font-size: 1.1rem; margin: 10px 0 5px; color: #764ba2; }
+        .note-content hr { margin: 20px 0; border: none; border-top: 1px solid #eee; }
+        .note-content blockquote { border-left: 4px solid #667eea; padding-left: 15px; margin: 10px 0; color: #666; }
+        .note-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .note-content th, .note-content td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        .note-content th { background: #f0f0f8; color: #555; font-weight: bold; }
+        .note-content tr:nth-child(even) { background: #fafafa; }
+        .note-content p { margin: 8px 0; }
+        .note-content ul, .note-content ol { padding-left: 1.5em; margin: 8px 0; }
+        .note-content code { background: #f4f4f8; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
         
         .error-card {
             background: #f8d7da;
@@ -501,6 +513,7 @@
         <div id="errorCard" class="error-card"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         // 默认仓库配置（如果 localStorage 中没有配置）
         const DEFAULT_REPO_OWNER = "JimmyCarter";
@@ -647,7 +660,7 @@
                     displayNote(note);
                     document.getElementById('loading').style.display = 'none';
                 } else {
-                    throw new Error('爬取超时，未获取到内容。请检查 Actions 运行状态。');
+                    throw new Error('前端等待超时（约5分钟），但 GitHub Actions 可能仍在运行。请稍后刷新页面重新搜索该课文，笔记可能已生成。也可前往 GitHub Actions 页面查看状态。');
                 }
                 
             } catch (error) {
@@ -712,73 +725,60 @@
             }
         }
         
-        async function pollForNewResult(lessonName, maxAttempts = 35, interval = 3000) {
-            // 记录开始时间，用于强制获取最新版本
-            const startTime = getTimestamp();
+        async function pollForNewResult(lessonName) {
+            // 分阶段轮询：越早发现越快响应
+            // 阶段1：前30s，每2s查一次（Actions刚启动，文件可能很快出现）
+            // 阶段2：30-90s，每4s查一次（爬取+AI生成中）
+            // 阶段3：90-180s，每6s查一次（兜底等待）
+            const phases = [
+                { duration: 30, interval: 2, label: '⏳ GitHub Actions 启动中' },
+                { duration: 60, interval: 4, label: '🕷️ 正在爬取资料并生成笔记' },
+                { duration: 90, interval: 6, label: '🤖 AI 正在整理笔记内容' },
+            ];
             
-            for (let i = 0; i < maxAttempts; i++) {
-                await new Promise(r => setTimeout(r, interval));
-                document.getElementById('progressInfo').innerHTML = `⏱️ 等待中... (${i+1}/${maxAttempts}) AI 正在生成详细笔记`;
-                
-                try {
-                    // 添加时间戳参数强制刷新，避免 GitHub 缓存
-                    const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md?t=${getTimestamp()}`;
-                    const response = await fetch(url, {
-                        cache: 'no-cache',
-                        headers: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
-                        }
-                    });
+            let elapsed = 0;
+            
+            for (const phase of phases) {
+                const steps = Math.ceil(phase.duration / phase.interval);
+                for (let i = 0; i < steps; i++) {
+                    await new Promise(r => setTimeout(r, phase.interval * 1000));
+                    elapsed += phase.interval;
                     
-                    if (response.ok) {
-                        const note = await response.text();
-                        // 检查是否是 AI 生成的完整笔记（长度足够，不是备用模板）
-                        if (note && note.length > 800 && !note.includes('AI 服务暂时不可用')) {
-                            console.log(`✅ 获取到新笔记，长度: ${note.length} 字`);
-                            return note;
+                    document.getElementById('progressInfo').innerHTML =
+                        `${phase.label}（已等待 ${elapsed}s）`;
+                    
+                    try {
+                        const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md?t=${getTimestamp()}`;
+                        const response = await fetch(url, {
+                            cache: 'no-cache',
+                            headers: {
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const note = await response.text();
+                            if (note && note.length > 800 && !note.includes('AI 服务暂时不可用')) {
+                                console.log(`✅ 获取到笔记，耗时 ${elapsed}s，长度: ${note.length} 字`);
+                                return note;
+                            }
                         }
+                    } catch(e) {
+                        // 文件还不存在，继续等待
                     }
-                } catch(e) {
-                    // 文件还不存在，继续等待
                 }
             }
             return null;
         }
         
         function displayNote(note) {
-            // 保存笔记内容
             currentNote = note;
             currentLessonName = document.getElementById('lessonName').value.trim();
             
-            // 简单 Markdown 转 HTML
-            let html = note
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\n/g, '<br>')
-                .replace(/^# (.*$)/gm, '<h1 style="font-size: 1.8rem; margin: 20px 0 10px; color: #333;">$1</h1>')
-                .replace(/^## (.*$)/gm, '<h2 style="font-size: 1.4rem; margin: 15px 0 10px; color: #555;">$1</h2>')
-                .replace(/^### (.*$)/gm, '<h3 style="font-size: 1.2rem; margin: 12px 0 8px; color: #667eea;">$1</h3>')
-                .replace(/^#### (.*$)/gm, '<h4 style="font-size: 1.1rem; margin: 10px 0 5px; color: #764ba2;">$1</h4>')
-                .replace(/^---$/gm, '<hr style="margin: 20px 0;">')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/^> (.*$)/gm, '<blockquote style="border-left: 4px solid #667eea; padding-left: 15px; margin: 10px 0; color: #666;">$1</blockquote>')
-                .replace(/\|/g, '|');
-            
-            // 简单处理表格
-            html = html.replace(/\|(.+)\|/g, function(match) {
-                let cells = match.split('|').filter(c => c.trim());
-                if (cells.length > 1) {
-                    return '<div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee;">' + 
-                           cells.map(cell => '<span style="flex: 1;">' + cell.trim() + '</span>').join('') + 
-                           '</div>';
-                }
-                return match;
-            });
-            
-            document.getElementById('noteContent').innerHTML = html;
+            // 使用 marked.js 渲染 Markdown
+            marked.setOptions({ breaks: true, gfm: true });
+            document.getElementById('noteContent').innerHTML = marked.parse(note);
             document.getElementById('resultCard').style.display = 'block';
         }
         
