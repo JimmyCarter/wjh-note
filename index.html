@@ -194,6 +194,23 @@
             font-size: 0.95rem;
             color: #333;
         }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 10px 22px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
         
         .note-content {
             padding: 30px;
@@ -566,6 +583,8 @@
         </div>
     </div>
 
+    <div id="toast" class="toast"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         // 默认仓库配置（如果 localStorage 中没有配置）
@@ -891,6 +910,10 @@
                 const headers = { 'Accept': 'application/vnd.github.v3+json' };
                 if (token) headers['Authorization'] = `token ${token}`;
                 const resp = await fetch(url, { headers });
+                if (resp.status === 404) {
+                    listEl.innerHTML = '<p style="color:#888;">暂无笔记文件</p>';
+                    return;
+                }
                 if (!resp.ok) throw new Error(`请求失败 ${resp.status}`);
                 const files = await resp.json();
                 const mdFiles = files.filter(f => f.name.endsWith('.md'));
@@ -935,7 +958,17 @@
                     })
                 });
                 if (resp.ok) {
-                    btn.closest('.file-item').remove();
+                    const item = btn.closest('.file-item');
+                    item.style.transition = 'opacity 0.3s';
+                    item.style.opacity = '0';
+                    setTimeout(() => {
+                        item.remove();
+                        const listEl = document.getElementById('fileList');
+                        if (!listEl.querySelector('.file-item')) {
+                            listEl.innerHTML = '<p style="color:#888;">暂无笔记文件</p>';
+                        }
+                    }, 300);
+                    showToast(`✅ 《${name}》已删除`);
                 } else {
                     const err = await resp.json();
                     alert(`删除失败: ${err.message}`);
@@ -947,6 +980,13 @@
                 btn.disabled = false;
                 btn.textContent = '🗑️ 删除';
             }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
         function copyNote() {
