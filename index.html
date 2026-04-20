@@ -752,6 +752,12 @@
             }
         }
         
+        // 正确解码 UTF-8 的 base64 内容（atob 只支持 Latin-1，中文需特殊处理）
+        function decodeBase64Utf8(b64) {
+            const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+
         async function checkExistingNote(lessonName) {
             // 使用 Contents API 检查，绕开 raw.githubusercontent.com 的 CDN 缓存
             const token = localStorage.getItem('github_token');
@@ -762,7 +768,7 @@
                 const resp = await fetch(url, { headers });
                 if (!resp.ok) return null; // 404 = 文件不存在
                 const data = await resp.json();
-                const content = atob(data.content.replace(/\n/g, ''));
+                const content = decodeBase64Utf8(data.content.replace(/\n/g, ''));
                 if (content && content.length > 500) {
                     console.log(`📁 找到已有笔记，长度: ${content.length} 字`);
                     return content;
@@ -886,7 +892,7 @@
                 if (!resp.ok) return null;
                 const data = await resp.json();
                 // Contents API 返回 base64 编码的内容
-                const content = atob(data.content.replace(/\n/g, ''));
+                const content = decodeBase64Utf8(data.content.replace(/\n/g, ''));
                 return content.length > 100 ? content : null;
             } catch(e) {
                 console.error('fetchNoteViaApi 失败:', e);
