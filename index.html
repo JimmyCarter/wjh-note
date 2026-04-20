@@ -1164,12 +1164,67 @@
                     item.className = 'file-item';
                     item.innerHTML = `
                         <span>📄 ${file.name.replace('.md', '')}</span>
-                        <button class="delete-file-btn" onclick="deleteFile('${file.path}', '${file.sha}', this)">🗑️ 删除</button>
+                        <div style="display:flex;gap:6px;">
+                            <button class="manage-btn" style="padding:4px 10px;font-size:0.8rem;background:#667eea;" onclick="viewFile('${file.path}', '${file.name.replace('.md','')}', this)">👁️ 查看</button>
+                            <button class="manage-btn" style="padding:4px 10px;font-size:0.8rem;background:#28a745;" onclick="downloadFileByPath('${file.path}', '${file.name}')">⬇️ 下载</button>
+                            <button class="delete-file-btn" onclick="deleteFile('${file.path}', '${file.sha}', this)">🗑️ 删除</button>
+                        </div>
                     `;
                     listEl.appendChild(item);
                 });
             } catch(e) {
                 listEl.innerHTML = `<p style="color:#dc3545;">加载失败: ${e.message}</p>`;
+            }
+        }
+
+        async function viewFile(filePath, lessonName, btn) {
+            const token = localStorage.getItem('github_token');
+            const orig = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '加载中...';
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                if (token) headers['Authorization'] = `token ${token}`;
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error(`请求失败 ${resp.status}`);
+                const data = await resp.json();
+                const content = decodeBase64Utf8(data.content.replace(/\n/g, ''));
+                currentNote = content;
+                currentLessonName = lessonName;
+                marked.setOptions({ breaks: true, gfm: true });
+                document.getElementById('noteContent').innerHTML = marked.parse(content);
+                document.getElementById('resultCard').style.display = 'block';
+                document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+            } catch(e) {
+                alert(`加载失败: ${e.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = orig;
+            }
+        }
+
+        async function downloadFileByPath(filePath, fileName) {
+            const token = localStorage.getItem('github_token');
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                if (token) headers['Authorization'] = `token ${token}`;
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error(`请求失败 ${resp.status}`);
+                const data = await resp.json();
+                const content = decodeBase64Utf8(data.content.replace(/\n/g, ''));
+                const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+                showToast(`⬇️ ${fileName} 已下载`);
+            } catch(e) {
+                alert(`下载失败: ${e.message}`);
             }
         }
 
