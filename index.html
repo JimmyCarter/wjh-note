@@ -694,26 +694,31 @@
                     return;
                 }
                 
-                // 文件不存在，触发爬虫 - 每次都是新的请求
+                // 文件不存在，触发爬虫
                 document.getElementById('loadingText').innerHTML = '📡 正在触发 GitHub Actions 爬虫...';
-                const triggered = await triggerWorkflow(lessonName, token);
+                const triggerTime = await triggerWorkflow(lessonName, token);
                 
-                if (!triggered) {
+                if (!triggerTime) {
                     throw new Error('触发爬虫失败，请检查 Token 权限');
                 }
                 
-                // 等待结果 - 轮询检查新生成的文件
-                document.getElementById('loadingText').innerHTML = '🕷️ 爬虫已启动，正在从 hanchacha.com 抓取资料...';
-                document.getElementById('progressInfo').innerHTML = '⏱️ 预计需要 30-90 秒，请耐心等待（AI 正在生成超详细笔记）';
+                // 通过 Actions API 跟踪 run 状态
+                const success = await waitForRunCompletion(lessonName, token, triggerTime);
                 
-                const note = await pollForNewResult(lessonName);
+                if (!success) {
+                    throw new Error('GitHub Actions 运行失败或超时，请前往 GitHub Actions 页面查看日志。');
+                }
+
+                // run 已完成，通过 Contents API 获取文件（绕开 CDN 缓存）
+                document.getElementById('loadingText').innerHTML = '📥 正在读取生成的笔记...';
+                const note = await fetchNoteViaApi(lessonName, token);
                 
                 if (note) {
                     document.getElementById('loadingText').innerHTML = '✅ 生成完成！';
                     displayNote(note);
                     document.getElementById('loading').style.display = 'none';
                 } else {
-                    throw new Error('前端等待超时（约5分钟），但 GitHub Actions 可能仍在运行。请稍后刷新页面重新搜索该课文，笔记可能已生成。也可前往 GitHub Actions 页面查看状态。');
+                    throw new Error('Action 已完成但未找到笔记文件，请检查 Actions 日志。');
                 }
                 
             } catch (error) {
@@ -749,6 +754,7 @@
         async function triggerWorkflow(lessonName, token) {
             const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/crawl.yml/dispatches`;
             try {
+                const triggerTime = new Date().toISOString();
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -758,71 +764,112 @@
                     },
                     body: JSON.stringify({
                         ref: 'main',
-                        inputs: { 
-                            lesson_name: lessonName
-                        }
+                        inputs: { lesson_name: lessonName }
                     })
                 });
                 
                 if (response.ok) {
-                    console.log('✅ 爬虫触发成功');
-                    return true;
+                    console.log('✅ 爬虫触发成功，触发时间:', triggerTime);
+                    return triggerTime;
                 } else {
                     const text = await response.text();
                     console.log('❌ 触发失败:', response.status, text);
-                    return false;
+                    return null;
                 }
             } catch (e) {
                 console.error('触发失败:', e);
-                return false;
+                return null;
             }
         }
-        
-        async function pollForNewResult(lessonName) {
-            // 分阶段轮询：越早发现越快响应
-            // 阶段1：前30s，每2s查一次（Actions刚启动，文件可能很快出现）
-            // 阶段2：30-90s，每4s查一次（爬取+AI生成中）
-            // 阶段3：90-180s，每6s查一次（兜底等待）
-            const phases = [
-                { duration: 30, interval: 2, label: '⏳ GitHub Actions 启动中' },
-                { duration: 60, interval: 4, label: '🕷️ 正在爬取资料并生成笔记' },
-                { duration: 90, interval: 6, label: '🤖 AI 正在整理笔记内容' },
-            ];
-            
+
+        async function waitForRunCompletion(lessonName, token, triggerTime) {
+            // 最多等待 5 分钟，每 5s 查一次 run 状态
+            const maxWait = 300;
+            const interval = 5;
             let elapsed = 0;
-            
-            for (const phase of phases) {
-                const steps = Math.ceil(phase.duration / phase.interval);
-                for (let i = 0; i < steps; i++) {
-                    await new Promise(r => setTimeout(r, phase.interval * 1000));
-                    elapsed += phase.interval;
-                    
-                    document.getElementById('progressInfo').innerHTML =
-                        `${phase.label}（已等待 ${elapsed}s）`;
-                    
-                    try {
-                        const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/data/${encodeURIComponent(lessonName)}.md?t=${getTimestamp()}`;
-                        const response = await fetch(url, {
-                            cache: 'no-cache',
-                            headers: {
-                                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                                'Pragma': 'no-cache'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const note = await response.text();
-                            if (note && note.length > 800 && !note.includes('AI 服务暂时不可用')) {
-                                console.log(`✅ 获取到笔记，耗时 ${elapsed}s，长度: ${note.length} 字`);
-                                return note;
+            let runId = null;
+
+            const headers = {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            };
+
+            const statusLabel = {
+                queued: '⏳ 等待排队中',
+                in_progress: '🏃 运行中',
+                completed: '✅ 已完成'
+            };
+
+            while (elapsed < maxWait) {
+                await new Promise(r => setTimeout(r, interval * 1000));
+                elapsed += interval;
+
+                try {
+                    // 查找触发时间之后创建的 run
+                    if (!runId) {
+                        const runsResp = await fetch(
+                            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/crawl.yml/runs?per_page=5`,
+                            { headers }
+                        );
+                        if (runsResp.ok) {
+                            const runsData = await runsResp.json();
+                            const run = runsData.workflow_runs?.find(
+                                r => new Date(r.created_at) >= new Date(triggerTime)
+                            );
+                            if (run) {
+                                runId = run.id;
+                                console.log(`🔍 找到 run ID: ${runId}`);
                             }
                         }
-                    } catch(e) {
-                        // 文件还不存在，继续等待
                     }
+
+                    if (runId) {
+                        const runResp = await fetch(
+                            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${runId}`,
+                            { headers }
+                        );
+                        if (runResp.ok) {
+                            const run = await runResp.json();
+                            const label = statusLabel[run.status] || run.status;
+                            document.getElementById('loadingText').innerHTML = `${label}：${run.name}`;
+                            document.getElementById('progressInfo').innerHTML =
+                                `⏱️ 已等待 ${elapsed}s　状态：${run.status}　Run #${runId}`;
+
+                            if (run.status === 'completed') {
+                                console.log(`🏁 run 完成，结论: ${run.conclusion}`);
+                                return run.conclusion === 'success';
+                            }
+                        }
+                    } else {
+                        document.getElementById('progressInfo').innerHTML =
+                            `⏳ 等待 Actions 启动中（已等待 ${elapsed}s）`;
+                    }
+                } catch(e) {
+                    console.warn('查询 run 状态失败:', e);
                 }
             }
-            return null;
+            return false; // 超时
+        }
+
+        async function fetchNoteViaApi(lessonName, token) {
+            // 通过 Contents API 获取文件，完全绕开 raw.githubusercontent.com 的 CDN 缓存
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/${encodeURIComponent(lessonName)}.md`;
+                const resp = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                // Contents API 返回 base64 编码的内容
+                const content = atob(data.content.replace(/\n/g, ''));
+                return content.length > 100 ? content : null;
+            } catch(e) {
+                console.error('fetchNoteViaApi 失败:', e);
+                return null;
+            }
         }
         
         function displayNote(note) {
@@ -901,6 +948,8 @@
                 btn.textContent = '🗑️ 删除';
             }
         }
+
+        function copyNote() {
             const text = document.getElementById('noteContent').innerText;
             navigator.clipboard.writeText(text);
             alert('✅ 笔记已复制到剪贴板');
