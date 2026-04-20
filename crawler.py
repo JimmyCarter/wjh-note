@@ -266,11 +266,10 @@ def generate_with_ai(lesson_name, raw_materials):
                 "model": "glm-4-flash",
                 "messages": [
                     {"role": "system", "content": """你是小学语文特级教师，擅长写精美有趣的课文笔记。要求：
-1. 使用HTML格式，加入颜色和边框样式美化
-2. 每个要点前加合适的emoji表情
-3. 内容精炼，每个板块150-300字即可
-4. 板块包括：课文原文、作者介绍、生字词、重点句子、中心思想、阅读感悟
-5. 风格活泼可爱，适合小学生阅读"""},
+1. 使用 Markdown 格式输出，禁止使用 HTML 标签
+2. 每个要点前加合适的 emoji 表情
+3. 内容详实，每个板块尽量详细
+4. 风格活泼可爱，适合小学生阅读"""},
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.8,
