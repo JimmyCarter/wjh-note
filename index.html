@@ -619,9 +619,7 @@
                 ⚡ 每次点击都会重新爬取 hanchacha.com 并调用 AI 重新生成，不会使用旧笔记
             </div>
             
-            <div id="tokenStatus" class="token-status token-missing">
-                ⚠️ 正在检测 Token...
-            </div>
+            <div id="tokenStatus" class="token-status" style="display:none"></div>
             
             <div id="tokenInputSection" class="token-input-section">
                 <label>🔑 请输入 GitHub Token</label>
@@ -737,7 +735,8 @@
             const token = localStorage.getItem('github_token');
             const statusDiv = document.getElementById('tokenStatus');
             const inputSection = document.getElementById('tokenInputSection');
-            if (token && token.startsWith('ghp_')) {
+            statusDiv.style.display = 'block';
+            if (token && (token.startsWith('ghp_') || token.startsWith('github_pat_'))) {
                 statusDiv.innerHTML = '✅ GitHub Token 已配置，爬虫功能可用！每次都会重新生成。 <a href="#" onclick="clearToken(); return false;" style="color:#155724; font-size:0.85em;">重新设置</a>';
                 statusDiv.className = 'token-status token-ok';
                 inputSection.style.display = 'none';
