@@ -53,6 +53,9 @@ def crawl_hanchacha(lesson_name):
     
     return all_text[:4000]
 
+# 从环境变量读取自定义提示词
+CUSTOM_PROMPT = os.environ.get("CUSTOM_PROMPT", "").strip()
+
 def generate_with_ai(lesson_name, raw_materials):
     """使用 AI 生成详细的学霸笔记"""
     
@@ -66,8 +69,13 @@ def generate_with_ai(lesson_name, raw_materials):
         
         # 合并爬取的资料
         detailed_materials = raw_materials if raw_materials else f"无网络资料，请根据课文《{lesson_name}》合理推断内容"
-        
-        prompt = f"""你是小学语文特级教师，有20年教学经验。请为课文《{lesson_name}》生成一份超级详细、超级专业的学霸综合笔记。
+
+        # 优先使用自定义提示词，占位符 {课文名称} 和 {参考资料} 会被替换
+        if CUSTOM_PROMPT:
+            print("  📝 使用自定义提示词")
+            prompt = CUSTOM_PROMPT.replace("{课文名称}", lesson_name).replace("{参考资料}", detailed_materials[:5000])
+        else:
+            prompt = f"""你是小学语文特级教师，有20年教学经验。请为课文《{lesson_name}》生成一份超级详细、超级专业的学霸综合笔记。
 
 【写作要求 - 必须严格遵守！！！】
 1. 内容必须极其详细、详实、完整
