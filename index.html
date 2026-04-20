@@ -1003,6 +1003,8 @@
                 el.innerHTML = '<span style="color:#888">使用默认提示词</span>';
             }
         }
+
+        async function triggerWorkflow(lessonName, token) {
             const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/crawl.yml/dispatches`;
             try {
                 const triggerTime = new Date().toISOString();
