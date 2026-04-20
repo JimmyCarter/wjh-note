@@ -133,7 +133,7 @@
             flex-wrap: wrap;
         }
         
-        .copy-btn, .download-btn {
+        .copy-btn, .download-btn, .delete-file-btn, .manage-btn {
             padding: 8px 16px;
             color: white;
             border: none;
@@ -148,6 +148,51 @@
         
         .download-btn {
             background: #667eea;
+        }
+
+        .manage-btn {
+            background: #6c757d;
+        }
+
+        .delete-file-btn {
+            background: #dc3545;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+        }
+
+        .manage-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-top: 24px;
+        }
+
+        .manage-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #444;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .file-item span {
+            font-size: 0.95rem;
+            color: #333;
         }
         
         .note-content {
@@ -511,6 +556,14 @@
         </div>
         
         <div id="errorCard" class="error-card"></div>
+
+        <div class="manage-card">
+            <h2>🗂️ 数据管理</h2>
+            <div style="margin-bottom:12px;">
+                <button class="manage-btn" onclick="loadFileList()">🔄 查看已生成的笔记</button>
+            </div>
+            <div id="fileList" class="file-list"></div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -782,7 +835,72 @@
             document.getElementById('resultCard').style.display = 'block';
         }
         
-        function copyNote() {
+        async function loadFileList() {
+            const token = localStorage.getItem('github_token');
+            const listEl = document.getElementById('fileList');
+            listEl.innerHTML = '⏳ 加载中...';
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data`;
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                if (token) headers['Authorization'] = `token ${token}`;
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error(`请求失败 ${resp.status}`);
+                const files = await resp.json();
+                const mdFiles = files.filter(f => f.name.endsWith('.md'));
+                if (mdFiles.length === 0) {
+                    listEl.innerHTML = '<p style="color:#888;">暂无笔记文件</p>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                mdFiles.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.innerHTML = `
+                        <span>📄 ${file.name.replace('.md', '')}</span>
+                        <button class="delete-file-btn" onclick="deleteFile('${file.path}', '${file.sha}', this)">🗑️ 删除</button>
+                    `;
+                    listEl.appendChild(item);
+                });
+            } catch(e) {
+                listEl.innerHTML = `<p style="color:#dc3545;">加载失败: ${e.message}</p>`;
+            }
+        }
+
+        async function deleteFile(filePath, sha, btn) {
+            const token = localStorage.getItem('github_token');
+            if (!token) { alert('请先配置 GitHub Token'); return; }
+            const name = filePath.split('/').pop().replace('.md', '');
+            if (!confirm(`确定删除《${name}》的笔记吗？`)) return;
+            btn.disabled = true;
+            btn.textContent = '删除中...';
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
+                const resp = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `删除笔记: ${name}`,
+                        sha: sha
+                    })
+                });
+                if (resp.ok) {
+                    btn.closest('.file-item').remove();
+                } else {
+                    const err = await resp.json();
+                    alert(`删除失败: ${err.message}`);
+                    btn.disabled = false;
+                    btn.textContent = '🗑️ 删除';
+                }
+            } catch(e) {
+                alert(`删除失败: ${e.message}`);
+                btn.disabled = false;
+                btn.textContent = '🗑️ 删除';
+            }
+        }
             const text = document.getElementById('noteContent').innerText;
             navigator.clipboard.writeText(text);
             alert('✅ 笔记已复制到剪贴板');
